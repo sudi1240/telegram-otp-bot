@@ -11,72 +11,46 @@ def get_server_1_numbers():
     try:
         url = "https://receive-smss.com/"
         soup = BeautifulSoup(requests.get(url).text, "html.parser")
-        return [a.text.strip() for a in soup.select(".number-boxes-item > a")[:5]]
-    except:
-        return ["❌ Failed to fetch numbers"]
-
-def get_server_1_inbox(number):
-    try:
-        slug = number.replace("+", "").replace(" ", "")
-        url = f"https://receive-smss.com/phone-number/{slug}/"
-        soup = BeautifulSoup(requests.get(url).text, "html.parser")
-        messages = []
-        for msg in soup.select(".sms-item")[:10]:
-            sender = msg.select_one(".sms-sender").text.strip()
-            text = msg.select_one(".sms-text").text.strip()
-            time = msg.select_one(".sms-date").text.strip()
-            messages.append(f"🕒 {time}\n📩 {sender}: {text}")
-        return messages or ["No messages found"]
-    except:
-        return ["❌ Error fetching inbox"]
+        blocks = soup.select(".number-boxes-item")
+        numbers = []
+        for block in blocks[:5]:
+            number = block.select_one(".number-boxes-item-number").text.strip()
+            numbers.append(number)
+        return numbers or ["❌ No numbers found"]
+    except Exception as e:
+        print("Server 1 error:", e)
+        return ["❌ Error fetching numbers"]
 
 # --- SERVER 2: SMS-Online ---
 def get_server_2_numbers():
     try:
         url = "https://sms-online.co/receive-free-sms"
         soup = BeautifulSoup(requests.get(url).text, "html.parser")
-        return [a.text.strip() for a in soup.select(".number-boxes-item > a")[:5]]
-    except:
-        return ["❌ Failed to fetch numbers"]
-
-def get_server_2_inbox(number):
-    try:
-        slug = number.replace("+", "").replace(" ", "")
-        url = f"https://sms-online.co/receive-free-sms/{slug}/"
-        soup = BeautifulSoup(requests.get(url).text, "html.parser")
-        messages = []
-        for msg in soup.select(".sms-item")[:10]:
-            sender = msg.select_one(".sms-sender").text.strip()
-            text = msg.select_one(".sms-text").text.strip()
-            time = msg.select_one(".sms-date").text.strip()
-            messages.append(f"🕒 {time}\n📩 {sender}: {text}")
-        return messages or ["No messages found"]
-    except:
-        return ["❌ Error fetching inbox"]
+        blocks = soup.select(".number-boxes-item")
+        numbers = []
+        for block in blocks[:5]:
+            number = block.select_one(".number-boxes-item-number").text.strip()
+            numbers.append(number)
+        return numbers or ["❌ No numbers found"]
+    except Exception as e:
+        print("Server 2 error:", e)
+        return ["❌ Error fetching numbers"]
 
 # --- SERVER 3: FreePhoneNum ---
 def get_server_3_numbers():
     try:
         url = "https://freephonenum.com/"
         soup = BeautifulSoup(requests.get(url).text, "html.parser")
-        return [span.text.strip() for span in soup.select("span.number-box-text")[:5]]
-    except:
-        return ["❌ Failed to fetch numbers"]
-
-def get_server_3_inbox(number):
-    try:
-        slug = number.replace("+", "").replace(" ", "")
-        url = f"https://freephonenum.com/{slug}/"
-        soup = BeautifulSoup(requests.get(url).text, "html.parser")
-        messages = []
-        for msg in soup.select(".sms-item")[:10]:
-            sender = msg.select_one(".sms-sender").text.strip()
-            text = msg.select_one(".sms-text").text.strip()
-            time = msg.select_one(".sms-date").text.strip()
-            messages.append(f"🕒 {time}\n📩 {sender}: {text}")
-        return messages or ["No messages found"]
-    except:
-        return ["❌ Error fetching inbox"]
+        items = soup.select("a.number-box")
+        numbers = []
+        for a in items[:5]:
+            num = a.select_one("span.number-box-text")
+            if num:
+                numbers.append(num.text.strip())
+        return numbers or ["❌ No numbers found"]
+    except Exception as e:
+        print("Server 3 error:", e)
+        return ["❌ Error fetching numbers"]
 
 # --- HANDLERS ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
