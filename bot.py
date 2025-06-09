@@ -8,7 +8,7 @@ from telegram.ext import (
     ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 )
 
-BOT_TOKEN = os.getenv("7895337093:AAEF7DWDIcRw1cIP-E2HFpPqotsaNE64JEo")  # Set this in your env vars
+BOT_TOKEN = os.getenv("BOT_TOKEN")  # Set this in your env vars
 
 ##############################
 # SCRAPING FUNCTIONS
