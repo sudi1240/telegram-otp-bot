@@ -6,7 +6,7 @@ from aiogram.filters import Command
 from aiogram.enums import ParseMode
 from aiogram import F
 
-API_TOKEN = "7613137152:AAHjWxkkepX75vawapTDl7bwnY60--TvA3E"
+API_TOKEN = "7613137152:AAHTIPaiCPwJ9QbLI3teX217CA293RoD2EE"
 ADMIN_ID = 6535216093  # replace with your telegram id
 
 bot = Bot(token=API_TOKEN)
