@@ -2,18 +2,19 @@ import os
 import sqlite3
 import secrets
 import asyncio
-from aiogram import Bot, Dispatcher, types
-from aiogram.filters import Command
+from aiogram import Bot, Dispatcher, types, F
 from aiogram.enums import ParseMode
-from aiogram import F
+from aiogram.filters import Command
+from aiogram.utils.deep_linking import create_start_link
 
-API_TOKEN = "7613137152:AAHTIPaiCPwJ9QbLI3teX217CA293RoD2EE"  # <-- এখানে Bot token দাও
-ADMIN_ID = 6535216093  # <-- তোমার Telegram numeric ID
+API_TOKEN = "7613137152:AAHTIPaiCPwJ9QbLI3teX217CA293RoD2EE"  # <-- টোকেন দাও
+ADMIN_ID = 6535216093  # <-- তোমার টেলিগ্রাম আইডি
+CHANNEL_USERNAME = "@WinzoHack_Tips_Tricks"  # <-- তোমার চ্যানেল ইউজারনেম
 
-bot = Bot(token=API_TOKEN)
+bot = Bot(token=API_TOKEN, parse_mode=ParseMode.HTML)
 dp = Dispatcher()
 
-# ===================== DB INIT =====================
+# ========== DB ==========
 def init_db():
     conn = sqlite3.connect("numbers.db")
     c = conn.cursor()
@@ -24,7 +25,9 @@ def init_db():
     )""")
     c.execute("""CREATE TABLE IF NOT EXISTS users (
         user_id INTEGER PRIMARY KEY,
-        balance INTEGER DEFAULT 0
+        balance INTEGER DEFAULT 0,
+        referred_by INTEGER,
+        joined_channel INTEGER DEFAULT 0
     )""")
     c.execute("""CREATE TABLE IF NOT EXISTS giftcodes (
         code TEXT PRIMARY KEY,
@@ -36,11 +39,11 @@ def init_db():
 
 init_db()
 
-# Helper functions
+# ========== Balance Functions ==========
 def get_balance(user_id: int) -> int:
     conn = sqlite3.connect("numbers.db")
     c = conn.cursor()
-    c.execute("INSERT OR IGNORE INTO users (user_id, balance) VALUES (?, 0)", (user_id,))
+    c.execute("INSERT OR IGNORE INTO users (user_id) VALUES (?)", (user_id,))
     conn.commit()
     c.execute("SELECT balance FROM users WHERE user_id=?", (user_id,))
     bal = c.fetchone()[0]
@@ -50,45 +53,82 @@ def get_balance(user_id: int) -> int:
 def add_balance(user_id: int, amount: int):
     conn = sqlite3.connect("numbers.db")
     c = conn.cursor()
-    c.execute("INSERT OR IGNORE INTO users (user_id, balance) VALUES (?, 0)", (user_id,))
     c.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (amount, user_id))
     conn.commit()
     conn.close()
 
-# ===================== HANDLERS =====================
-
-# START
+# ========== START ==========
 @dp.message(Command("start"))
 async def start_cmd(message: types.Message):
-    bal = get_balance(message.from_user.id)
+    user_id = message.from_user.id
+    args = message.text.split()
+    conn = sqlite3.connect("numbers.db")
+    c = conn.cursor()
+    c.execute("INSERT OR IGNORE INTO users (user_id, balance, referred_by) VALUES (?, 5, NULL)", (user_id,))
+    conn.commit()
+
+    if len(args) > 1 and args[1].isdigit():
+        referrer_id = int(args[1])
+        if referrer_id != user_id:
+            c.execute("SELECT referred_by FROM users WHERE user_id=?", (user_id,))
+            already_referred = c.fetchone()[0]
+            if not already_referred:
+                c.execute("UPDATE users SET referred_by=? WHERE user_id=?", (referrer_id, user_id))
+                add_balance(referrer_id, 5)  # 5 coins to referrer
+                conn.commit()
+
+    # Check channel join bonus
+    try:
+        member = await bot.get_chat_member(chat_id=CHANNEL_USERNAME, user_id=user_id)
+        if member.status in ["member", "administrator", "creator"]:
+            c.execute("SELECT joined_channel FROM users WHERE user_id=?", (user_id,))
+            if c.fetchone()[0] == 0:
+                add_balance(user_id, 2)
+                c.execute("UPDATE users SET joined_channel=1 WHERE user_id=?", (user_id,))
+                conn.commit()
+    except:
+        pass
+    conn.close()
+
+    bal = get_balance(user_id)
     await message.reply(
         f"🙏 Jai Shree Ram!\n\n"
         f"Commands:\n"
         f"/getnumber - Get a 12-digit number (1 coin)\n"
         f"/balance - Check balance\n"
         f"/redeem - Redeem gift code\n"
-        f"/addbalance - How to add balance\n\n"
+        f"/addbalance - How to add balance\n"
+        f"/refer - Refer & earn coins\n\n"
         f"Your current balance: {bal} coins"
     )
 
-# BALANCE
+# ========== REFER ==========
+@dp.message(Command("refer"))
+async def refer_cmd(message: types.Message):
+    user_id = message.from_user.id
+    link = await create_start_link(bot, payload=str(user_id), encode=True)
+    await message.reply(f"🔗 Your referral link:\n{link}\n\n"
+                        f"👥 Earn 5 coins per referral.\n"
+                        f"🎁 Signup bonus: 5 coins\n"
+                        f"📢 Join {CHANNEL_USERNAME} to get +2 coins.")
+
+# ========== BALANCE ==========
 @dp.message(Command("balance"))
 async def balance_cmd(message: types.Message):
     bal = get_balance(message.from_user.id)
     await message.reply(f"💰 Your balance: {bal} coins")
 
-# ADD BALANCE INFO
 @dp.message(Command("addbalance"))
 async def addbalance_cmd(message: types.Message):
-    await message.reply("For add balance contact admin (admin telegram id: @Ox_Anonymous)")
+    await message.reply("For add balance contact admin (admin telegram id: @YourAdminUsername)")
 
-# GET NUMBER
+# ========== GET NUMBER ==========
 @dp.message(Command("getnumber"))
 async def get_number(message: types.Message):
     user_id = message.from_user.id
     bal = get_balance(user_id)
     if bal < 1:
-        return await message.reply("⚠️ You need 1 coin to get a number. Use /redeem to redeem gift code.")
+        return await message.reply("⚠️ You need 1 coin to get a number.")
     conn = sqlite3.connect("numbers.db")
     c = conn.cursor()
     c.execute("SELECT id, number FROM numbers WHERE used=0 LIMIT 1")
@@ -102,7 +142,7 @@ async def get_number(message: types.Message):
         await message.reply("😢 Sorry, no numbers left.")
     conn.close()
 
-# UPLOAD
+# ========== UPLOAD ==========
 @dp.message(Command("upload"))
 async def upload_cmd(message: types.Message):
     if message.from_user.id != ADMIN_ID:
@@ -133,8 +173,6 @@ async def handle_file_upload(message: types.Message):
     await message.reply(f"✅ Uploaded {count} numbers.")
 
 # ========== GIFT CODE ==========
-
-# Track redeem mode
 redeem_waiting = {}
 gengift_waiting = {}
 
@@ -157,7 +195,6 @@ async def redeem_start(message: types.Message):
 async def all_messages(message: types.Message):
     user_id = message.from_user.id
 
-    # Handle gift generation flow
     if gengift_waiting.get(user_id) == "ask_value":
         if not message.text.isdigit():
             return await message.reply("Please send a valid number.")
@@ -171,7 +208,6 @@ async def all_messages(message: types.Message):
         gengift_waiting.pop(user_id, None)
         return await message.reply(f"🎟 Gift code generated:\nCode: {code}\nValue: {value} coins")
 
-    # Handle redeem flow
     if redeem_waiting.get(user_id):
         code = message.text.strip().upper()
         conn = sqlite3.connect("numbers.db")
@@ -191,7 +227,7 @@ async def all_messages(message: types.Message):
         conn.close()
         redeem_waiting.pop(user_id, None)
 
-# ===================== RUN =====================
+# ========== RUN ==========
 async def main():
     await dp.start_polling(bot)
 
