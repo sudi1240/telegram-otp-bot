@@ -1,2 +1,1 @@
-python-telegram-bot==20.6
-yt-dlp
+aiogram==3.4.1
