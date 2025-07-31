@@ -81,7 +81,7 @@ async def get_number(message: types.Message):
 # 🏁 Start command
 @dp.message(Command("start"))
 async def start(message: types.Message):
-    await message.reply("🙏 Jai Shree Ram! Type /getnumber to get your 12-digit number.")
+    await message.reply("🙏 Jai Shree Ram! Type /getnumber to get your 12-digit Aadhar number.")
 
 # 🔁 Run the bot
 async def main():
